@@ -79,8 +79,7 @@ const QuitCompetitorDialog = ({ open, onClose, competitor, roundId }) => {
     <Dialog open={open} onClose={onClose}>
       {loading && <Loading />}
       <DialogTitle>
-        Quit{" "}
-        <span translate="no">{competitor && competitor.name}</span>
+        Quit <span translate="no">{competitor && competitor.name}</span>
       </DialogTitle>
       <DialogContent>
         {error && <Error error={error} />}
