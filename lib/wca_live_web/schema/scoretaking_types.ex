@@ -83,6 +83,11 @@ defmodule WcaLiveWeb.Schema.ScoretakingTypes do
     field :advancement_candidates, non_null(:advancement_candidates) do
       resolve &Resolvers.Scoretaking.round_advancement_candidates/3
     end
+
+    @desc "History of competitors removed (quit) from this round."
+    field :removals, non_null(list_of(non_null(:round_removal))) do
+      resolve &Resolvers.Scoretaking.round_removals/3
+    end
   end
 
   object :format do
@@ -160,6 +165,21 @@ defmodule WcaLiveWeb.Schema.ScoretakingTypes do
             "If this list is not empty, it means the qualifying people have quit before, " <>
             "and thus may supersede whoever replaced them."
     field :revocable, non_null(list_of(non_null(:person)))
+  end
+
+  @desc "A record of a competitor being removed (quit) from a round."
+  object :round_removal do
+    field :id, non_null(:id)
+    field :replaced, non_null(:boolean)
+    field :removed_at, non_null(:datetime)
+
+    field :person, non_null(:person) do
+      resolve dataloader(:db)
+    end
+
+    field :removed_by, non_null(:user) do
+      resolve dataloader(:db)
+    end
   end
 
   @desc "Official regional record from the WCA rankings."

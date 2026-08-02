@@ -64,4 +64,10 @@ defmodule WcaLiveWeb.Resolvers.Scoretaking do
   def record_event(%{event_id: event_id}, _args, _resolution) do
     {:ok, Wca.Event.get_by_id!(event_id)}
   end
+
+  # Round removals (quit history)
+
+  def round_removals(round, _args, _resolution) do
+    {:ok, Scoretaking.list_round_removals(round)}
+  end
 end

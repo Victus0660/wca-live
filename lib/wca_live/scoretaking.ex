@@ -16,6 +16,7 @@ defmodule WcaLive.Scoretaking do
   alias WcaLive.Scoretaking
   alias WcaLive.Scoretaking.Round
   alias WcaLive.Scoretaking.Result
+  alias WcaLive.Scoretaking.RoundRemoval
   alias WcaLive.Accounts
 
   @doc """
@@ -400,9 +401,9 @@ defmodule WcaLive.Scoretaking do
 
     * `:replace` - Add the next qualifying person to this round if applicable. Defaults to `false`.
   """
-  @spec remove_person_from_round(%Competitions.Person{}, %Round{}, keyword()) ::
+  @spec remove_person_from_round(%Competitions.Person{}, %Round{}, %Accounts.User{}, keyword()) ::
           {:ok, %Round{}} | {:error, String.t() | Ecto.Changeset.t()}
-  def remove_person_from_round(person, round, opts \\ []) do
+  def remove_person_from_round(person, round, current_user, opts \\ []) do
     replace = Keyword.get(opts, :replace, false)
 
     round = round |> Repo.preload(:results)
@@ -423,9 +424,16 @@ defmodule WcaLive.Scoretaking do
 
       results = List.delete(round.results, result) ++ new_results
 
-      results
-      |> Round.put_results_in_round(round)
-      |> update_round_and_advancing()
+      round_changeset = Round.put_results_in_round(results, round)
+
+      Repo.transaction_with(fn ->
+        with {:ok, round} <- Repo.update(round_changeset),
+             {:ok, round} <- Repo.update(Scoretaking.Advancing.compute_advancing(round)),
+             :ok <- compute_previous_round_advancing(round),
+             {:ok, _removal} <- log_round_removal(round, person, current_user, replace) do
+          {:ok, round}
+        end
+      end)
     end
   end
 
@@ -433,16 +441,28 @@ defmodule WcaLive.Scoretaking do
   Removes results from `round` corresponding to the given `person_ids`,
   provided they have no attempts.
   """
-  @spec remove_no_shows_from_round(%Round{}, list(pos_integer())) ::
+  @spec remove_no_shows_from_round(%Round{}, list(pos_integer()), %Accounts.User{}) ::
           {:ok, %Round{}} | {:error, String.t() | Ecto.Changeset.t()}
-  def remove_no_shows_from_round(round, person_ids) do
+  def remove_no_shows_from_round(round, person_ids, current_user) do
     round = round |> Repo.preload(:results)
+
+    removed_person_ids =
+      round.results
+      |> Enum.filter(&(&1.person_id in person_ids and &1.attempts == []))
+      |> Enum.map(& &1.person_id)
 
     results = Enum.reject(round.results, &(&1.person_id in person_ids and &1.attempts == []))
 
-    results
-    |> Round.put_results_in_round(round)
-    |> update_round_and_advancing()
+    round_changeset = Round.put_results_in_round(results, round)
+
+    Repo.transaction_with(fn ->
+      with {:ok, round} <- Repo.update(round_changeset),
+           {:ok, round} <- Repo.update(Scoretaking.Advancing.compute_advancing(round)),
+           :ok <- compute_previous_round_advancing(round),
+           :ok <- log_round_removals_bulk(round, removed_person_ids, current_user) do
+        {:ok, round}
+      end
+    end)
   end
 
   # Saves the given round changeset and recomputes `advancing` for
@@ -660,5 +680,59 @@ defmodule WcaLive.Scoretaking do
           result.entered_by_id == ^staff_member.user_id
     )
     |> Repo.aggregate(:count)
+  end
+
+  # Round removals (quit history)
+
+  @doc """
+  Returns all round removal records for the given round,
+  preloaded with person and removed_by associations.
+  """
+  @spec list_round_removals(%Round{} | pos_integer()) :: list(%RoundRemoval{})
+  def list_round_removals(%Round{id: round_id}), do: list_round_removals(round_id)
+
+  def list_round_removals(round_id) when is_integer(round_id) or is_binary(round_id) do
+    from(rr in RoundRemoval,
+      where: rr.round_id == ^round_id,
+      order_by: [desc: rr.removed_at],
+      preload: [:person, :removed_by]
+    )
+    |> Repo.all()
+  end
+
+  defp log_round_removal(round, person, current_user, replaced) do
+    %RoundRemoval{}
+    |> RoundRemoval.changeset(%{
+      round_id: round.id,
+      person_id: person.id,
+      removed_by_id: current_user.id,
+      replaced: replaced,
+      removed_at: DateTime.utc_now() |> DateTime.truncate(:second)
+    })
+    |> Repo.insert()
+  end
+
+  defp log_round_removals_bulk(_round, [], _current_user), do: :ok
+
+  defp log_round_removals_bulk(round, person_ids, current_user) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    results =
+      Enum.map(person_ids, fn person_id ->
+        %RoundRemoval{}
+        |> RoundRemoval.changeset(%{
+          round_id: round.id,
+          person_id: person_id,
+          removed_by_id: current_user.id,
+          replaced: false,
+          removed_at: now
+        })
+        |> Repo.insert()
+      end)
+
+    case Enum.find(results, &match?({:error, _}, &1)) do
+      nil -> :ok
+      error -> error
+    end
   end
 end

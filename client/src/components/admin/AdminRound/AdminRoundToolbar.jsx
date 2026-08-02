@@ -5,8 +5,10 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import CheckIcon from "@mui/icons-material/Check";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import PrintIcon from "@mui/icons-material/Print";
+import HistoryIcon from "@mui/icons-material/History";
 import AddCompetitorDialog from "./AddCompetitorDialog";
 import QuitNoShowsDialog from "./QuitNoShowsDialog";
+import QuitHistoryDialog from "./QuitHistoryDialog";
 import { appUrl } from "../../../lib/urls";
 
 function roundDescription(round) {
@@ -19,6 +21,7 @@ function roundDescription(round) {
 function AdminRoundToolbar({ round, competitionId }) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [quitNoShowsOpen, setQuitNoShowsOpen] = useState(false);
+  const [quitHistoryOpen, setQuitHistoryOpen] = useState(false);
 
   return (
     <>
@@ -57,6 +60,11 @@ function AdminRoundToolbar({ round, competitionId }) {
               <CheckIcon />
             </IconButton>
           </Tooltip>
+          <Tooltip title="Quit history" placement="top">
+            <IconButton onClick={() => setQuitHistoryOpen(true)} size="large">
+              <HistoryIcon />
+            </IconButton>
+          </Tooltip>
           {/* For subsequent rounds there are few no-shows and they may
               be replaced with competitors from the previous round, so
               we enable the bulk quit only for the first round */}
@@ -78,6 +86,11 @@ function AdminRoundToolbar({ round, competitionId }) {
         open={quitNoShowsOpen}
         onClose={() => setQuitNoShowsOpen(false)}
         results={round.results}
+        roundId={round.id}
+      />
+      <QuitHistoryDialog
+        open={quitHistoryOpen}
+        onClose={() => setQuitHistoryOpen(false)}
         roundId={round.id}
       />
     </>
