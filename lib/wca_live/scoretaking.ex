@@ -401,9 +401,20 @@ defmodule WcaLive.Scoretaking do
 
     * `:replace` - Add the next qualifying person to this round if applicable. Defaults to `false`.
   """
-  @spec remove_person_from_round(%Competitions.Person{}, %Round{}, %Accounts.User{}, keyword()) ::
+  @spec remove_person_from_round(
+          %Competitions.Person{},
+          %Round{},
+          %Accounts.User{} | keyword() | nil,
+          keyword()
+        ) ::
           {:ok, %Round{}} | {:error, String.t() | Ecto.Changeset.t()}
-  def remove_person_from_round(person, round, current_user, opts \\ []) do
+  def remove_person_from_round(person, round, current_user_or_opts \\ [], opts \\ [])
+
+  def remove_person_from_round(person, round, opts, []) when is_list(opts) do
+    remove_person_from_round(person, round, nil, opts)
+  end
+
+  def remove_person_from_round(person, round, current_user, opts) do
     replace = Keyword.get(opts, :replace, false)
 
     round = round |> Repo.preload(:results)
@@ -441,9 +452,9 @@ defmodule WcaLive.Scoretaking do
   Removes results from `round` corresponding to the given `person_ids`,
   provided they have no attempts.
   """
-  @spec remove_no_shows_from_round(%Round{}, list(pos_integer()), %Accounts.User{}) ::
+  @spec remove_no_shows_from_round(%Round{}, list(pos_integer()), %Accounts.User{} | nil) ::
           {:ok, %Round{}} | {:error, String.t() | Ecto.Changeset.t()}
-  def remove_no_shows_from_round(round, person_ids, current_user) do
+  def remove_no_shows_from_round(round, person_ids, current_user \\ nil) do
     round = round |> Repo.preload(:results)
 
     removed_person_ids =
@@ -701,11 +712,13 @@ defmodule WcaLive.Scoretaking do
   end
 
   defp log_round_removal(round, person, current_user, replaced) do
+    removed_by_id = if current_user, do: current_user.id, else: nil
+
     %RoundRemoval{}
     |> RoundRemoval.changeset(%{
       round_id: round.id,
       person_id: person.id,
-      removed_by_id: current_user.id,
+      removed_by_id: removed_by_id,
       replaced: replaced,
       removed_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
@@ -716,6 +729,7 @@ defmodule WcaLive.Scoretaking do
 
   defp log_round_removals_bulk(round, person_ids, current_user) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
+    removed_by_id = if current_user, do: current_user.id, else: nil
 
     results =
       Enum.map(person_ids, fn person_id ->
@@ -723,7 +737,7 @@ defmodule WcaLive.Scoretaking do
         |> RoundRemoval.changeset(%{
           round_id: round.id,
           person_id: person_id,
-          removed_by_id: current_user.id,
+          removed_by_id: removed_by_id,
           replaced: false,
           removed_at: now
         })

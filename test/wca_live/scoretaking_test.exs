@@ -713,6 +713,20 @@ defmodule WcaLive.ScoretakingTest do
     assert not Enum.any?(results, &(&1.person_id == person2.id))
   end
 
+  test "remove_person_from_round logs round removal audit entry" do
+    user = insert(:user)
+    round = insert(:round, number: 1)
+    person = insert(:person)
+    insert(:result, person: person, round: round)
+
+    assert {:ok, _updated} = Scoretaking.remove_person_from_round(person, round, user)
+    removals = Scoretaking.list_round_removals(round)
+    assert [removal] = removals
+    assert removal.person_id == person.id
+    assert removal.removed_by_id == user.id
+    assert removal.replaced == false
+  end
+
   test "list_recent_records/1 ignores old records" do
     insert_result_x_days_ago(
       20,

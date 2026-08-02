@@ -31,7 +31,7 @@ defmodule WcaLive.Scoretaking.RoundRemoval do
   def changeset(round_removal, attrs) do
     round_removal
     |> cast(attrs, [:replaced, :removed_at, :round_id, :person_id, :removed_by_id])
-    |> validate_required([:replaced, :removed_at, :round_id, :person_id, :removed_by_id])
+    |> validate_required([:replaced, :removed_at, :round_id, :person_id])
     |> foreign_key_constraint(:round_id)
     |> foreign_key_constraint(:person_id)
     |> foreign_key_constraint(:removed_by_id)
