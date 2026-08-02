@@ -73,9 +73,7 @@ function QuitHistoryDialog({ open, onClose, roundId }) {
                 {removals.map((removal) => (
                   <TableRow key={removal.id}>
                     <TableCell>
-                      <span translate="no">
-                        {removal.person.name}
-                      </span>
+                      <span translate="no">{removal.person.name}</span>
                       <Typography
                         variant="caption"
                         color="textSecondary"
@@ -85,9 +83,7 @@ function QuitHistoryDialog({ open, onClose, roundId }) {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <span translate="no">
-                        {removal.removedBy.name}
-                      </span>
+                      <span translate="no">{removal.removedBy.name}</span>
                     </TableCell>
                     <TableCell>
                       {format(parseISO(removal.removedAt), "MMM d, HH:mm")}
