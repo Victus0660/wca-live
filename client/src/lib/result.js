@@ -403,7 +403,9 @@ export function sortResultsByColumn(results, sortConfig) {
 
   function getValue(result) {
     if (type === "attempt") {
-      return result.attempts[index] ? result.attempts[index].result : SKIPPED_VALUE;
+      return result.attempts[index]
+        ? result.attempts[index].result
+        : SKIPPED_VALUE;
     }
     if (type === "stat") {
       return result[field] ?? SKIPPED_VALUE;
@@ -425,4 +427,3 @@ export function sortResultsByColumn(results, sortConfig) {
     return (a.ranking ?? Infinity) - (b.ranking ?? Infinity);
   });
 }
-

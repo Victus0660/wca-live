@@ -91,7 +91,9 @@ const RoundResultsTable = memo(
                     <TableCell key={index} sx={styles.cell} align="right">
                       <TableSortLabel
                         active={isAttemptActive}
-                        direction={isAttemptActive ? sortConfig.direction : "asc"}
+                        direction={
+                          isAttemptActive ? sortConfig.direction : "asc"
+                        }
                         onClick={() =>
                           onSortChange &&
                           onSortChange({ type: "attempt", index })

@@ -879,4 +879,3 @@ describe("sortResultsByColumn", () => {
     expect(sorted.map((r) => r.id)).toEqual(["1", "3", "2"]);
   });
 });
-
